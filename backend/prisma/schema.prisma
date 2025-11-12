@@ -1,0 +1,458 @@
+// ================================================================
+// PRISMA SCHEMA - FOODIES ARQUITECTURA HÍBRIDA REALISTA
+// ================================================================
+// Versión: 1.0 - Arquitectura Híbrida Completa (25 Tablas)
+// Fecha: Noviembre 2025
+// Base de datos: PostgreSQL 15+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ================================================================
+// 3.1 TABLAS PRINCIPALES (CORE SYSTEM)
+// ================================================================
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  username      String   @unique
+  password      String
+  fullName      String   @map("full_name")
+  avatarUrl     String?  @map("avatar_url")
+  phone         String?
+  bio           String?
+  locationName  String?  @map("location_name")
+  preferences   Json     @default("{}")
+  isActive      Boolean  @default(true) @map("is_active")
+  emailVerified Boolean  @default(false) @map("email_verified")
+  phoneVerified Boolean  @default(false) @map("phone_verified")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  restaurants         Restaurant[]         @relation("RestaurantOwner")
+  posts               Post[]
+  likes               Like[]
+  authSessions        AuthSession[]
+  passwordResets      PasswordReset[]
+  emailVerification   EmailVerification?
+  followsAsFollower   Follow[]             @relation("Follower")
+  followsAsFollowing  Follow[]             @relation("Following")
+  userFavorites       UserFavorite[]
+  searchHistory       SearchHistory[]
+  userLocations       UserLocation[]
+  notifications       Notification[]
+  fileUploads         FileUpload[]
+  adminUser           AdminUser?
+  reportsAsReporter   UserReport[]         @relation("Reporter")
+  reportsAsReported   UserReport[]         @relation("Reported")
+  systemLogs          SystemLog[]
+
+  @@map("users")
+}
+
+model Restaurant {
+  id             String  @id @default(uuid())
+  name           String
+  address        String
+  latitude       Decimal @db.Decimal(10, 8)
+  longitude      Decimal @db.Decimal(11, 8)
+  phone          String
+  email          String?
+  website        String?
+  category       String
+  priceRange     Int     @map("price_range")
+  ratingAverage  Decimal @default(0.0) @db.Decimal(3, 2) @map("rating_average")
+  totalReviews   Int     @default(0) @map("total_reviews")
+  isActive       Boolean @default(true) @map("is_active")
+  isVerified     Boolean @default(false) @map("is_verified")
+  ownerId        String  @map("owner_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  owner              User                 @relation("RestaurantOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  posts              Post[]
+  userFavorites      UserFavorite[]
+  restaurantMenu     RestaurantMenuItem[]
+  restaurantHours    RestaurantHours[]
+  promotions         RestaurantPromotion[]
+  reservationSettings ReservationSettings?
+
+  @@map("restaurants")
+}
+
+model Post {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  restaurantId  String?  @map("restaurant_id")
+  content       String
+  imageUrl      String?  @map("image_url")
+  rating        Int?
+  likesCount    Int      @default(0) @map("likes_count")
+  commentsCount Int      @default(0) @map("comments_count")
+  isPublic      Boolean  @default(true) @map("is_public")
+  isFeatured    Boolean  @default(false) @map("is_featured")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  likes      Like[]
+
+  @@map("posts")
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("likes")
+}
+
+// ================================================================
+// 3.2 TABLAS DE AUTENTICACIÓN Y SESIONES
+// ================================================================
+
+model AuthSession {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  sessionToken String  @unique @map("session_token")
+  platform    String   @db.VarChar(20)
+  deviceInfo  Json     @default("{}") @map("device_info")
+  ipAddress   String?  @map("ip_address")
+  expiresAt   DateTime @map("expires_at")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_sessions")
+}
+
+model PasswordReset {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  resetToken  String   @unique @map("reset_token")
+  expiresAt   DateTime @map("expires_at")
+  isUsed      Boolean  @default(false) @map("is_used")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_resets")
+}
+
+model EmailVerification {
+  id                  String   @id @default(uuid())
+  userId              String   @unique @map("user_id")
+  verificationToken   String   @unique @map("verification_token")
+  expiresAt           DateTime @map("expires_at")
+  isVerified          Boolean  @default(false) @map("is_verified")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_verifications")
+}
+
+// ================================================================
+// 3.3 TABLAS DE FUNCIONALIDAD MÓVIL
+// ================================================================
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+model UserFavorite {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  restaurantId String   @map("restaurant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, restaurantId])
+  @@map("user_favorites")
+}
+
+model SearchHistory {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  searchQuery  String   @map("search_query")
+  searchType   String   @default("restaurant") @map("search_type")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("search_history")
+}
+
+model UserLocation {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  name        String
+  address     String
+  latitude    Decimal  @db.Decimal(10, 8)
+  longitude   Decimal  @db.Decimal(11, 8)
+  isDefault   Boolean  @default(false) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_locations")
+}
+
+// ================================================================
+// 3.4 TABLAS DE WEB PROPIETARIOS
+// ================================================================
+
+model RestaurantMenuItem {
+  id           String   @id @default(uuid())
+  restaurantId String   @map("restaurant_id")
+  name         String
+  description  String?
+  category     String?
+  price        Decimal  @db.Decimal(10, 2)
+  imageUrl     String?  @map("image_url")
+  isAvailable  Boolean  @default(true) @map("is_available")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("restaurant_menu")
+}
+
+model RestaurantHours {
+  id           String   @id @default(uuid())
+  restaurantId String   @map("restaurant_id")
+  dayOfWeek    Int      @map("day_of_week")
+  openTime     String?  @map("open_time")
+  closeTime    String?  @map("close_time")
+  isClosed     Boolean  @default(false) @map("is_closed")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, dayOfWeek])
+  @@map("restaurant_hours")
+}
+
+model RestaurantPromotion {
+  id            String   @id @default(uuid())
+  restaurantId  String   @map("restaurant_id")
+  title         String
+  description   String?
+  discountType  String   @default("percentage") @map("discount_type")
+  discountValue Decimal  @db.Decimal(10, 2) @map("discount_value")
+  startDate     DateTime @db.Date @map("start_date")
+  endDate       DateTime @db.Date @map("end_date")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("restaurant_promotions")
+}
+
+model ReservationSettings {
+  id              String   @id @default(uuid())
+  restaurantId    String   @unique @map("restaurant_id")
+  isEnabled       Boolean  @default(false) @map("is_enabled")
+  maxPartySize    Int      @default(10) @map("max_party_size")
+  minAdvanceHours Int      @default(2) @map("min_advance_hours")
+  maxAdvanceDays  Int      @default(30) @map("max_advance_days")
+  timeSlotMinutes Int      @default(30) @map("time_slot_minutes")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("reservation_settings")
+}
+
+// ================================================================
+// 3.5 TABLAS DE WEB ADMIN
+// ================================================================
+
+model AdminUser {
+  id          String   @id @default(uuid())
+  userId      String   @unique @map("user_id")
+  adminLevel  String   @default("basic") @map("admin_level")
+  permissions Json     @default("{}")
+  lastLogin   DateTime? @map("last_login")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moderatedItems ContentModeration[]    @relation("Moderator")
+
+  @@map("admin_users")
+}
+
+model SystemSettings {
+  id           String   @id @default(uuid())
+  settingKey   String   @unique @map("setting_key")
+  settingValue String?  @map("setting_value")
+  settingType  String   @default("string") @map("setting_type")
+  description  String?
+  isPublic     Boolean  @default(false) @map("is_public")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+model ContentModeration {
+  id           String    @id @default(uuid())
+  contentType  String    @map("content_type")
+  contentId    String    @map("content_id")
+  status       String    @default("pending")
+  moderatorId  String?   @map("moderator_id")
+  reason       String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  moderator AdminUser? @relation("Moderator", fields: [moderatorId], references: [id])
+
+  @@map("content_moderation")
+}
+
+model UserReport {
+  id             String   @id @default(uuid())
+  reporterId     String   @map("reporter_id")
+  reportedUserId String   @map("reported_user_id")
+  reason         String
+  description    String?
+  status         String   @default("pending")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  reporter     User @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser User @relation("Reported", fields: [reportedUserId], references: [id], onDelete: Cascade)
+
+  @@map("user_reports")
+}
+
+model SystemLog {
+  id            String   @id @default(uuid())
+  userId        String?  @map("user_id")
+  action        String
+  resourceType  String?  @map("resource_type")
+  resourceId    String?  @map("resource_id")
+  platform      String?
+  ipAddress     String?  @map("ip_address")
+  metadata      Json     @default("{}")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("system_logs")
+}
+
+// ================================================================
+// 3.6 TABLAS DE NOTIFICACIONES
+// ================================================================
+
+model Notification {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  type         String
+  title        String
+  message      String?
+  data         Json      @default("{}")
+  isRead       Boolean   @default(false) @map("is_read")
+  isPushSent   Boolean   @default(false) @map("is_push_sent")
+  expiresAt    DateTime? @map("expires_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  queueItems NotificationQueue[]
+
+  @@map("notifications")
+}
+
+model NotificationQueue {
+  id            String    @id @default(uuid())
+  notificationId String    @map("notification_id")
+  channel       String
+  status        String    @default("pending")
+  scheduledAt   DateTime  @default(now()) @map("scheduled_at")
+  sentAt        DateTime? @map("sent_at")
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(3) @map("max_attempts")
+  errorMessage  String?   @map("error_message")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@map("notification_queue")
+}
+
+// ================================================================
+// 3.7 TABLAS DE MULTIMEDIA
+// ================================================================
+
+model FileUpload {
+  id                    String   @id @default(uuid())
+  userId                String   @map("user_id")
+  originalName          String   @map("original_name")
+  filePath              String   @map("file_path")
+  fileSize              BigInt   @map("file_size")
+  mimeType              String   @map("mime_type")
+  fileType              String   @map("file_type")
+  isPublic              Boolean  @default(false) @map("is_public")
+  cloudinaryPublicId    String?  @map("cloudinary_public_id")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("file_uploads")
+}

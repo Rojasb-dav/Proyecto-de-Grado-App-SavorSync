@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "SavorSync",
+    "slug": "savorsync-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.savorsync.mobile"
+    },
+    "android": {
+      "package": "com.savorsync.mobile",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCjqPyYX3gYEuv_sd_lMxNBNeLFjJu5SHU"
+        }
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-camera",
+      "expo-location",
+      "expo-image-picker",
+      "expo-notifications"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    },
+    "description": "Aplicación móvil SavorSync - Prototipo para proyecto de grado",
+    "author": "David Rojas",
+    "license": "MIT"
+  }
+}
