@@ -165,12 +165,12 @@ SavorSync/
 
 1. Crear una base de datos PostgreSQL:
 ```sql
-CREATE DATABASE savorsync;
+CREATE DATABASE foodies_prototype;
 ```
 
 2. Ejecutar el script de creación de tablas:
 ```bash
-psql -U postgres -d savorsync -f docs/database-schema.sql
+psql -U postgres -d foodies_prototype -f docs/database-schema.sql
 ```
 
 3. Configurar las variables de entorno en cada componente
